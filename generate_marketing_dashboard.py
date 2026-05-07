@@ -1013,16 +1013,349 @@ def build_dashboard(ws, wb):
              f"=IFERROR(SUM('{CT}'!$P:$P),\"–\")",
              '#,##0', CHARCOAL, LT_GRY, DARK, "All campaigns total")
 
+    # ── Section: Charts (row 43)
+    mc(ws, 43, 1, 43, TOTAL_COLS,
+       "  📈  VISUAL TRENDS  —  Charts auto-populate as you enter data into the input sheets",
+       CHARCOAL, WHITE, 11, True, "left")
+    rh(ws, {43: 26, 42: 10})
+
+    # ── Hidden chart-data staging area (rows 45-72, cols A-R)
+    #    Pulls 12-month rolling data for each chart so charts stay clean
+    # Chart 1 data: Monthly sessions (Digital_Analytics)
+    mc(ws, 45, 1, 45, 12, "Chart Data — Website Sessions (12 months)", LT_GRY, DARK, 8, False)
+    rh(ws, {45: 14})
+    for i, m in enumerate(MONTHS[:12]):
+        col = i + 1
+        ws.cell(46, col).value = m
+        ws.cell(46, col).font  = fn(8, False, MID_GRY)
+        ws.cell(47, col).value = (
+            f"=IFERROR(SUMIF(Digital_Analytics!$A:$A,\"{m}\",Digital_Analytics!$B:$B),0)"
+        )
+        ws.cell(47, col).number_format = '#,##0'
+        ws.cell(47, col).font = fn(8)
+    rh(ws, {46: 12, 47: 12})
+
+    # Chart 2 data: Social followers by platform (latest full month)
+    mc(ws, 49, 1, 49, 8, "Chart Data — Social Followers by Platform", LT_GRY, DARK, 8, False)
+    rh(ws, {49: 14})
+    for i, plat in enumerate(PLATFORMS):
+        ws.cell(50, i+1).value = plat
+        ws.cell(50, i+1).font  = fn(8, False, MID_GRY)
+        ws.cell(51, i+1).value = (
+            f"=IFERROR(SUMIF(Social_Media!$B:$B,\"{plat}\",Social_Media!$C:$C),0)"
+        )
+        ws.cell(51, i+1).number_format = '#,##0'
+        ws.cell(51, i+1).font = fn(8)
+    rh(ws, {50: 12, 51: 12})
+
+    # Chart 3 data: Monthly ad spend (Paid_Ads)
+    mc(ws, 53, 1, 53, 12, "Chart Data — Monthly Ad Spend (R)", LT_GRY, DARK, 8, False)
+    rh(ws, {53: 14})
+    for i, m in enumerate(MONTHS[:12]):
+        col = i + 1
+        ws.cell(54, col).value = m
+        ws.cell(54, col).font  = fn(8, False, MID_GRY)
+        ws.cell(55, col).value = (
+            f"=IFERROR(SUMIF(Paid_Ads!$A:$A,\"{m}\",Paid_Ads!$G:$G),0)"
+        )
+        ws.cell(55, col).number_format = 'R#,##0'
+        ws.cell(55, col).font = fn(8)
+    rh(ws, {54: 12, 55: 12})
+
+    # Chart 4 data: Traffic source mix
+    mc(ws, 57, 1, 57, 6, "Chart Data — Traffic Source Mix (all months)", LT_GRY, DARK, 8, False)
+    rh(ws, {57: 14})
+    sources = [("Organic","G"),("Paid","H"),("Social","I"),("Direct","J"),("Other","K")]
+    for i, (label, col_letter) in enumerate(sources):
+        ws.cell(58, i+1).value = label
+        ws.cell(58, i+1).font  = fn(8, False, MID_GRY)
+        ws.cell(59, i+1).value = f"=IFERROR(SUM(Digital_Analytics!${col_letter}:${col_letter}),0)"
+        ws.cell(59, i+1).number_format = '#,##0'
+        ws.cell(59, i+1).font = fn(8)
+    rh(ws, {58: 12, 59: 12})
+
+    # ── Build and place charts
+    from openpyxl.chart import BarChart, LineChart, Reference
+    from openpyxl.chart.series import SeriesLabel
+
+    # Chart 1: Sessions trend (LineChart)
+    lc = LineChart()
+    lc.title        = "Monthly Website Sessions"
+    lc.style        = 10
+    lc.y_axis.title = "Sessions"
+    lc.height       = 12
+    lc.width        = 22
+    lc.grouping     = "standard"
+    data_ref = Reference(ws, min_col=1, max_col=12, min_row=47, max_row=47)
+    cats_ref = Reference(ws, min_col=1, max_col=12, min_row=46, max_row=46)
+    lc.add_data(data_ref)
+    lc.set_categories(cats_ref)
+    lc.series[0].title       = SeriesLabel(v="Sessions")
+    lc.series[0].graphicalProperties.line.solidFill = MD_GRN
+    lc.series[0].graphicalProperties.line.width     = 25000
+    lc.series[0].smooth = True
+    ws.add_chart(lc, "B61")
+
+    # Chart 2: Social followers by platform (BarChart)
+    bc1 = BarChart()
+    bc1.title        = "Total Followers by Platform"
+    bc1.style        = 10
+    bc1.type         = "col"
+    bc1.y_axis.title = "Followers"
+    bc1.height       = 12
+    bc1.width        = 22
+    data2 = Reference(ws, min_col=1, max_col=6, min_row=51, max_row=51)
+    cats2 = Reference(ws, min_col=1, max_col=6, min_row=50, max_row=50)
+    bc1.add_data(data2)
+    bc1.set_categories(cats2)
+    bc1.series[0].title = SeriesLabel(v="Followers")
+    bc1.series[0].graphicalProperties.solidFill = TEAL
+    ws.add_chart(bc1, "J61")
+
+    # Chart 3: Monthly ad spend (BarChart)
+    bc2 = BarChart()
+    bc2.title        = "Monthly Ad Spend (R)"
+    bc2.style        = 10
+    bc2.type         = "col"
+    bc2.y_axis.title = "Spend (R)"
+    bc2.height       = 12
+    bc2.width        = 22
+    data3 = Reference(ws, min_col=1, max_col=12, min_row=55, max_row=55)
+    cats3 = Reference(ws, min_col=1, max_col=12, min_row=54, max_row=54)
+    bc2.add_data(data3)
+    bc2.set_categories(cats3)
+    bc2.series[0].title = SeriesLabel(v="Ad Spend (R)")
+    bc2.series[0].graphicalProperties.solidFill = BLUE
+    ws.add_chart(bc2, "B79")
+
+    # Chart 4: Traffic source mix (BarChart horizontal)
+    bc3 = BarChart()
+    bc3.title        = "Traffic Source Mix (All-Time)"
+    bc3.style        = 10
+    bc3.type         = "bar"
+    bc3.y_axis.title = "Channel"
+    bc3.x_axis.title = "Sessions"
+    bc3.height       = 12
+    bc3.width        = 22
+    data4 = Reference(ws, min_col=1, max_col=5, min_row=59, max_row=59)
+    cats4 = Reference(ws, min_col=1, max_col=5, min_row=58, max_row=58)
+    bc3.add_data(data4)
+    bc3.set_categories(cats4)
+    bc3.series[0].title = SeriesLabel(v="Sessions")
+    bc3.series[0].graphicalProperties.solidFill = DK_GRN
+    ws.add_chart(bc3, "J79")
+
     # ── Footer row
-    mc(ws, 41, 1, 41, TOTAL_COLS,
-       f"  Invegrow Foods Line  |  Marketing Dashboard  |  Auto-updates from data entry sheets  |  Last updated: select month above",
+    mc(ws, 97, 1, 97, TOTAL_COLS,
+       f"  Invegrow Foods Line  |  Marketing Dashboard  |  Auto-updates from data entry sheets  |  v2.0  |  2025",
        DK_GRN, "A5D6A7", 9, False, "left")
-    rh(ws, {41: 16})
+    rh(ws, {97: 16})
 
     # Column widths for dashboard
     for col_letter in [get_column_letter(c) for c in range(1, TOTAL_COLS+1)]:
         ws.column_dimensions[col_letter].width = 12
     ws.column_dimensions["A"].width = 3  # spacer
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  SAMPLE / DEMO DATA SEEDER
+#  Populates Jan-25 → Jun-25 so charts render immediately on first open.
+#  Replace with real numbers — formulas update automatically.
+# ══════════════════════════════════════════════════════════════════════════════
+def seed_demo_data(wb):
+    print("Seeding demo data …")
+
+    # ── Digital Analytics (DS=7, cols B-M for data)
+    ws_da = wb["Digital_Analytics"]
+    # columns: sessions, unique, pageviews, bounce%, dur_min, organic, paid, social, direct, other, goals, conv%
+    da_rows = [
+        ("Jan-25", 4200,  3100,  12600, 58.3, 2.4,  2100, 800,  600,  500,  200, 200, 4.8),
+        ("Feb-25", 4850,  3600,  14550, 55.1, 2.7,  2400, 950,  720,  580,  200, 242, 5.0),
+        ("Mar-25", 5300,  4000,  15900, 53.8, 2.9,  2650, 1100, 820,  580,  150, 280, 5.3),
+        ("Apr-25", 6100,  4600,  18300, 51.2, 3.1,  3050, 1400, 950,  550,  150, 340, 5.6),
+        ("May-25", 7200,  5400,  21600, 49.5, 3.3,  3600, 1700, 1150, 580,  170, 420, 5.8),
+        ("Jun-25", 8100,  6100,  24300, 47.8, 3.6,  4050, 1900, 1350, 620,  180, 500, 6.2),
+    ]
+    for i, row_data in enumerate(da_rows):
+        r = 7 + i   # DS = 7
+        for j, val in enumerate(row_data[1:]):   # skip month (pre-filled)
+            ws_da.cell(r, j + 2).value = val     # col B onwards
+
+    # ── Social Media (DS=6, platforms cycle: Insta,FB,TikTok,YT,LinkedIn,Twitter)
+    ws_sm = wb["Social_Media"]
+    # structure: {platform: [(month, followers, new_foll, posts, impressions, reach, engmt, likes, comments, shares, saves)]}
+    sm_data = {
+        "Instagram": [
+            ("Jan-25", 12400, 320,  18, 185000,   95000,   9500,   7600,  950,  600,  350),
+            ("Feb-25", 12900, 500,  22, 210000,  108000,  11000,   8800, 1050,  750,  400),
+            ("Mar-25", 13600, 700,  20, 245000,  125000,  13000,  10400, 1200,  900,  500),
+            ("Apr-25", 14500, 900,  24, 290000,  148000,  15500,  12400, 1400, 1050,  650),
+            ("May-25", 15700, 1200, 26, 340000,  175000,  18500,  14800, 1700, 1350,  650),
+            ("Jun-25", 17200, 1500, 28, 398000,  204000,  22000,  17600, 2000, 1600,  800),
+        ],
+        "Facebook": [
+            ("Jan-25",  8200, 120,  12,  98000,  52000,  2600,  1800,  420,  280,  100),
+            ("Feb-25",  8400, 200,  14, 112000,  59000,  3000,  2100,  480,  320,  100),
+            ("Mar-25",  8700, 300,  12, 128000,  67000,  3500,  2450,  560,  380,  110),
+            ("Apr-25",  9100, 400,  16, 148000,  78000,  4100,  2870,  660,  450,  120),
+            ("May-25",  9650, 550,  18, 172000,  90000,  4900,  3430,  780,  540,  150),
+            ("Jun-25", 10300, 650,  20, 198000, 104000,  5700,  3990,  900,  630,  180),
+        ],
+        "TikTok": [
+            ("Jan-25",  5600,  800, 20,  320000,  210000,  21000,  17500, 2100, 1050,  350),
+            ("Feb-25",  7200, 1600, 25,  490000,  320000,  32000,  26700, 3200, 1600,  500),
+            ("Mar-25",  9500, 2300, 22,  710000,  465000,  46500,  38800, 4650, 2325,  725),
+            ("Apr-25", 12800, 3300, 28,  980000,  642000,  64200,  53500, 6420, 3210, 1070),
+            ("May-25", 17200, 4400, 30, 1350000,  885000,  88500,  73800, 8850, 4425, 1425),
+            ("Jun-25", 23100, 5900, 32, 1820000, 1195000, 119500,  99600,11950, 5975, 1975),
+        ],
+        "YouTube": [
+            ("Jan-25", 2100,  80, 4,  48000,  32000, 1920, 1440, 240, 192, 48),
+            ("Feb-25", 2250, 150, 5,  62000,  41000, 2460, 1845, 308, 246, 61),
+            ("Mar-25", 2450, 200, 4,  78000,  52000, 3120, 2340, 390, 312, 78),
+            ("Apr-25", 2700, 250, 6,  96000,  64000, 3840, 2880, 480, 384, 96),
+            ("May-25", 3000, 300, 5, 118000,  79000, 4740, 3555, 592, 474,119),
+            ("Jun-25", 3380, 380, 6, 142000,  95000, 5700, 4275, 712, 570,143),
+        ],
+        "LinkedIn": [
+            ("Jan-25", 1850,  60,  8, 28000, 18000,  900,  630, 180,  72, 18),
+            ("Feb-25", 1950, 100, 10, 34000, 22000, 1100,  770, 220,  88, 22),
+            ("Mar-25", 2100, 150,  9, 41000, 27000, 1350,  945, 270, 108, 27),
+            ("Apr-25", 2300, 200, 12, 49000, 32000, 1600, 1120, 320, 128, 32),
+            ("May-25", 2550, 250, 11, 58000, 38000, 1900, 1330, 380, 152, 38),
+            ("Jun-25", 2850, 300, 14, 68000, 44000, 2200, 1540, 440, 176, 44),
+        ],
+        "Twitter/X": [
+            ("Jan-25", 3200, 100, 15, 42000, 28000, 1400,  980, 280, 112, 28),
+            ("Feb-25", 3380, 180, 18, 52000, 35000, 1750, 1225, 350, 140, 35),
+            ("Mar-25", 3600, 220, 16, 63000, 42000, 2100, 1470, 420, 168, 42),
+            ("Apr-25", 3860, 260, 20, 76000, 51000, 2550, 1785, 510, 204, 51),
+            ("May-25", 4180, 320, 22, 91000, 61000, 3050, 2135, 610, 244, 61),
+            ("Jun-25", 4550, 370, 24,108000, 72000, 3600, 2520, 720, 288, 72),
+        ],
+    }
+    # Social_Media rows cycle: for each month, all 6 platforms in order
+    row = 6   # DS = 6
+    for month in MONTHS:
+        for platform in PLATFORMS:
+            if month in [d[0] for d in sm_data[platform]]:
+                vals = next(d for d in sm_data[platform] if d[0] == month)
+                for j, val in enumerate(vals[1:]):
+                    ws_sm.cell(row, j + 3).value = val   # col C onwards
+            row += 1
+
+    # ── Paid Ads (DS=6, cols A-N for data)
+    ws_pa = wb["Paid_Ads"]
+    # cols: month, name, platform, product, objective, budget, spend, _, impressions, clicks, _,_,_, convs
+    paid_rows = [
+        ("Jan-25","Hemp Protein Launch – Meta",    "Meta (Facebook/Instagram)","Hemp Protein Powder 1kg",   "Product Launch",   8000, 7850, 1200000,3600,180),
+        ("Jan-25","Hemp Seed Oil – Google Search",  "Google Ads",               "Hemp Seed Oil 500ml",       "Website Traffic",  5000, 4920,   85000, 2800,142),
+        ("Feb-25","Hemp Granola – TikTok",          "TikTok Ads",               "Hemp Granola 400g",         "Brand Awareness",  6000, 5980, 2100000,4200, 96),
+        ("Feb-25","Hemp Omega – Google Search",     "Google Ads",               "Hemp Omega Capsules 60s",   "Lead Generation",  4500, 4480,   72000, 2160,108),
+        ("Mar-25","Spring Range – Meta Retarget",   "Meta (Facebook/Instagram)","Hemp Hearts 500g",          "Retargeting",      7000, 6950,  980000,3920,235),
+        ("Mar-25","Hemp Energy Bar – TikTok",       "TikTok Ads",               "Hemp Energy Bar (Box 12)",  "Engagement",       5500, 5490, 1850000,3700, 74),
+        ("Apr-25","Product Range – Meta Brand",     "Meta (Facebook/Instagram)","Hemp Superfood Blend 300g", "Brand Awareness",  9000, 8920, 1650000,4950,198),
+        ("Apr-25","Hemp Butter – Google Display",   "Google Ads",               "Hemp Seed Butter 400g",     "Website Traffic",  3500, 3480,  420000,1260, 63),
+        ("May-25","Winter Launch – Meta",           "Meta (Facebook/Instagram)","Hemp Flour 1kg",            "Product Launch",  10000, 9850, 1920000,5760,288),
+        ("May-25","Hemp Honey – Influencer",        "Influencer",               "Hemp Infused Honey 250g",   "Reach",           12000,11800, 3200000,   0,320),
+        ("Jun-25","Mid-Year Sale – Meta",           "Meta (Facebook/Instagram)","Hemp Seed Oil 500ml",       "Seasonal Promo",  15000,14850, 2800000,8400,504),
+        ("Jun-25","Hemp Range – Google Brand",      "Google Ads",               "Hemp Protein Powder 1kg",   "Brand Awareness",  6000, 5980,   95000,3800,190),
+    ]
+    for i, (month, name, plat, prod, obj, budget, spend, imp, clicks, convs) in enumerate(paid_rows):
+        r = 6 + i
+        ws_pa.cell(r, 1).value  = month
+        ws_pa.cell(r, 2).value  = name
+        ws_pa.cell(r, 3).value  = plat
+        ws_pa.cell(r, 4).value  = prod
+        ws_pa.cell(r, 5).value  = obj
+        ws_pa.cell(r, 6).value  = budget
+        ws_pa.cell(r, 7).value  = spend
+        ws_pa.cell(r, 9).value  = imp
+        ws_pa.cell(r, 10).value = clicks
+        ws_pa.cell(r, 14).value = convs
+
+    # ── Email Marketing (DS=6)
+    ws_em = wb["Email_Mktg"]
+    email_rows = [
+        ("Jan-25","January Newsletter",          "Full List",      12400, 12200,  980,  4270,  2135,  182),
+        ("Jan-25","Hemp Protein Launch Promo",   "Health & Fitness",4800,  4730,  460,  2081,  1040,   96),
+        ("Feb-25","February Newsletter",         "Full List",      12800, 12600, 1050,  4410,  2205,  176),
+        ("Feb-25","Hemp Granola Launch",         "Food & Recipe",   5200,  5130,  530,  2309,  1155,  103),
+        ("Mar-25","March Newsletter",            "Full List",      13100, 12900, 1110,  4515,  2258,  171),
+        ("Mar-25","Spring Sale Campaign",        "All Customers",  13100, 12890, 2060,  5800,  2900,  232),
+        ("Apr-25","April Newsletter",            "Full List",      13500, 13280, 1160,  4781,  2391,  186),
+        ("Apr-25","New Product Alert",           "Subscribers",     6400,  6310,  840,  2839,  1420,  119),
+        ("May-25","May Newsletter",              "Full List",      13900, 13670, 1230,  5054,  2527,  192),
+        ("May-25","Mother's Day Promo",          "Gift Buyers",     8200,  8080,  1730, 3636,  1818,  145),
+        ("Jun-25","June Newsletter",             "Full List",      14200, 13980, 1330,  5173,  2587,  198),
+        ("Jun-25","Mid-Year Sale Launch",        "All Customers",  14200, 13960, 3630,  6415,  3208,  257),
+    ]
+    for i, (month, name, seg, sent, deliv, opens, clicks, unsubs, convs) in enumerate(email_rows):
+        r = 6 + i
+        ws_em.cell(r, 1).value  = month
+        ws_em.cell(r, 2).value  = name
+        ws_em.cell(r, 3).value  = seg
+        ws_em.cell(r, 4).value  = sent
+        ws_em.cell(r, 5).value  = deliv
+        ws_em.cell(r, 7).value  = opens
+        ws_em.cell(r, 9).value  = clicks
+        ws_em.cell(r, 11).value = unsubs
+        ws_em.cell(r, 13).value = convs
+
+    # ── Content & PR (DS=6, months pre-filled)
+    ws_cp = wb["Content_PR"]
+    # cols: blog, social_posts, press_releases, pr_mentions, emv, influencer_collabs, inf_reach, videos, podcast, avg_rating
+    cp_rows = [
+        ("Jan-25",  2, 45, 1,  4,  28000, 2,  85000,  1, 0, 4.3),
+        ("Feb-25",  3, 52, 1,  6,  42000, 3, 120000,  2, 1, 4.4),
+        ("Mar-25",  4, 60, 2,  9,  65000, 4, 165000,  3, 1, 4.5),
+        ("Apr-25",  3, 68, 1, 11,  78000, 5, 210000,  2, 2, 4.5),
+        ("May-25",  5, 75, 2, 14,  95000, 6, 280000,  4, 2, 4.6),
+        ("Jun-25",  4, 80, 3, 18, 125000, 7, 360000,  3, 3, 4.7),
+    ]
+    for i, (month, blog, social, pr_rel, pr_men, emv, inf_col, inf_reach, vids, pod, rating) in enumerate(cp_rows):
+        r = 6 + i
+        ws_cp.cell(r, 2).value  = blog
+        ws_cp.cell(r, 3).value  = social
+        ws_cp.cell(r, 4).value  = pr_rel
+        ws_cp.cell(r, 5).value  = pr_men
+        ws_cp.cell(r, 6).value  = emv
+        ws_cp.cell(r, 7).value  = inf_col
+        ws_cp.cell(r, 8).value  = inf_reach
+        ws_cp.cell(r, 9).value  = vids
+        ws_cp.cell(r, 10).value = pod
+        ws_cp.cell(r, 12).value = rating
+
+    # ── Campaigns (DS=6)
+    ws_ct = wb["Campaigns"]
+    from datetime import date
+    campaigns = [
+        ("Hemp Protein Powder Launch",  "Product Launch",  "Hemp Protein Powder 1kg",  date(2025,1,6),  date(2025,2,28), "Completed", 20000, 18770, "Meta, Google, Email, Influencer",  "Health-conscious 25–45",        "Fuel your day with plant protein",        2400000, 1200000,  85000, 322),
+        ("Spring Awareness Campaign",   "Brand Awareness", "Hemp Hearts 500g",          date(2025,3,1),  date(2025,3,31), "Completed", 12500, 12440, "Meta, TikTok, PR",                 "Foodies & wellness seekers",    "Nature's most complete seed",              980000,  580000,  35000, 235),
+        ("Hemp Granola TikTok Drive",   "Engagement",      "Hemp Granola 400g",         date(2025,2,10), date(2025,3,15), "Completed",  8000,  7960, "TikTok Ads, Social Organic",       "Gen Z & Millennials",           "Crunch into something better",            2100000, 1400000, 120000,  96),
+        ("Mid-Year Sale",               "Seasonal Promo",  "Hemp Seed Oil 500ml",       date(2025,6,1),  date(2025,6,30), "Completed", 18000, 17850, "Meta, Google, Email",              "Existing customers + lookalike","Stock up before it sells out",            2800000, 1800000,  92000, 504),
+        ("Hemp Honey Influencer Drive", "Reach",           "Hemp Infused Honey 250g",   date(2025,5,1),  date(2025,5,31), "Completed", 15000, 14800, "Influencer, Social Organic",       "Foodie lifestyle creators",     "Nature's sweetest superfood",             3200000, 2100000, 180000, 320),
+        ("Q3 Brand Growth Campaign",    "Brand Awareness", "Hemp Seed Oil 500ml",       date(2025,7,1),  date(2025,9,30), "Active",    35000, 12400, "Meta, TikTok, Google, Email, PR",  "25–45 health-conscious adults", "The original hemp superfood",                   0,       0,      0,   0),
+    ]
+    for i, (name, obj, prod, start, end, status, budget, spend, channels, audience, message, imp, reach, engmt, leads) in enumerate(campaigns):
+        r = 6 + i
+        ws_ct.cell(r,  1).value = name
+        ws_ct.cell(r,  2).value = obj
+        ws_ct.cell(r,  3).value = prod
+        ws_ct.cell(r,  4).value = start
+        ws_ct.cell(r,  5).value = end
+        ws_ct.cell(r,  6).value = status
+        ws_ct.cell(r,  7).value = budget
+        ws_ct.cell(r,  8).value = spend
+        ws_ct.cell(r, 10).value = channels
+        ws_ct.cell(r, 11).value = audience
+        ws_ct.cell(r, 12).value = message
+        ws_ct.cell(r, 13).value = imp
+        ws_ct.cell(r, 14).value = reach
+        ws_ct.cell(r, 15).value = engmt
+        ws_ct.cell(r, 16).value = leads
+
+    print("  ✓ Demo data seeded (Jan-25 → Jun-25)")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1061,6 +1394,9 @@ def main():
     build_campaigns(ws_campaigns)
     print("Building Product Marketing …")
     build_products(ws_products)
+
+    # Seed demo data so charts render on first open
+    seed_demo_data(wb)
 
     # Set DASHBOARD as the default active sheet
     wb.active = ws_dash
